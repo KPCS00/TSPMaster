@@ -14,3 +14,11 @@ public record AllocationItem(
     string FundName,
     decimal Percentage
 );
+
+public record TransferStatusDto(
+    int TransfersUsed,
+    int RemainingTransfers,
+    int MaxTransfers,
+    bool IsMove3GFundOnly,
+    string CurrentMonth
+);

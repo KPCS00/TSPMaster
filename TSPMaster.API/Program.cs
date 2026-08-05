@@ -97,6 +97,7 @@ try
 
     // ─── Background Services ──────────────────────────────────────────────────
     builder.Services.AddHostedService<TspPriceSyncService>();
+    builder.Services.AddHostedService<TspDailyRecommendationService>();
 
     // ─── Controllers + Swagger ────────────────────────────────────────────────
     builder.Services.AddControllers();

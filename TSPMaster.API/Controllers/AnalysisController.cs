@@ -54,4 +54,19 @@ public class AnalysisController : ControllerBase
         var result = await _analysisService.RefreshRecommendationAsync();
         return Ok(result);
     }
+
+    /// <summary>Manually trigger the 10:30 AM CST daily recommendation email dispatch (Admin/Test).</summary>
+    [HttpPost("daily-email/test")]
+    [Authorize]
+    public async Task<IActionResult> TriggerDailyEmail([FromServices] IEnumerable<IHostedService> services)
+    {
+        var dailyService = services.OfType<TspDailyRecommendationService>().FirstOrDefault();
+        if (dailyService is not null)
+        {
+            _logger.LogInformation("Manual trigger for 10:30 AM CST Daily Email Briefing.");
+            await dailyService.ProcessDailyRecommendationsAsync();
+            return Ok(new { message = "Daily 10:30 AM CST strategy emails processed and dispatched." });
+        }
+        return BadRequest(new { message = "TspDailyRecommendationService is not active." });
+    }
 }

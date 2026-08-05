@@ -6,4 +6,5 @@ public interface IAllocationService
 {
     Task<List<AllocationDto>> GetAllocationsAsync(string userId);
     Task SetAllocationsAsync(string userId, List<AllocationItem> allocations);
+    Task<TransferStatusDto> GetTransferStatusAsync(string userId);
 }

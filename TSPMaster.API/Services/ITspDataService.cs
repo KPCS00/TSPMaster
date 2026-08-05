@@ -7,6 +7,9 @@ public interface ITspDataService
     /// <summary>Fetch and upsert TSP fund prices from tsp.gov CSV.</summary>
     Task SyncAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Ensures fund prices exist up to yesterday; triggers sync if out of date.</summary>
+    Task EnsurePricesUpToDateAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Returns the latest price for each fund.</summary>
     Task<List<FundLatestDto>> GetLatestPricesAsync();
 

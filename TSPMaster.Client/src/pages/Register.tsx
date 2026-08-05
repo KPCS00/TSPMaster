@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
 import { authApi } from '../api/client'
 import { UserPlus } from 'lucide-react'
@@ -55,29 +54,6 @@ export default function Register() {
     }
   }
 
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
-    if (!credentialResponse.credential) {
-      setError('Google sign-up failed: no credential received.')
-      return
-    }
-    setLoading(true)
-    setError('')
-    try {
-      const data = await authApi.googleLogin(credentialResponse.credential)
-      login(data)
-      navigate('/')
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Google sign-up failed. Please verify server setup.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleGoogleError = () => {
-    setError('Google sign-up was canceled or failed.')
-  }
-
   return (
     <div className="auth-page">
       <div className="auth-card fade-in">
@@ -97,22 +73,6 @@ export default function Register() {
             <span>⚠️</span> {error}
           </div>
         )}
-
-        <div className="google-btn-wrapper">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-            useOneTap
-            theme="filled_blue"
-            shape="rectangular"
-            text="signup_with"
-            size="large"
-          />
-        </div>
-
-        <div className="auth-divider">
-          <span>or sign up with email</span>
-        </div>
 
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>

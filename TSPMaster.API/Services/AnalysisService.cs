@@ -114,6 +114,38 @@ public class AnalysisService : IAnalysisService
             recommendationText = BuildFallbackRecommendation(fundScores, topFund);
         }
 
+        // Default 3-Move Strategy Plans based on scores
+        var currentMonth = DateTime.UtcNow.ToString("MMMM yyyy");
+        var sortedScores = fundScores.OrderByDescending(f => f.Score).ToList();
+        var top1 = sortedScores.Count > 0 ? sortedScores[0].FundName : "C Fund";
+        var top2 = sortedScores.Count > 1 ? sortedScores[1].FundName : "S Fund";
+
+        var move1Plan = new MonthlyMovePlanDto(
+            1,
+            "Move 1: Start-of-Month Core Positioning",
+            "Immediate (Start of " + currentMonth + ")",
+            new Dictionary<string, decimal> { [top1] = 60m, [top2] = 40m },
+            $"Primary allocation targeting top performing funds ({top1} and {top2}) based on momentum and trend metrics."
+        );
+
+        var move2Plan = new MonthlyMovePlanDto(
+            2,
+            "Move 2: Mid-Month Tactical Rebalance",
+            "Tactical Signal (Triggered if " + top1 + " breaks below 20-day MA or Fed/macro policy shifts)",
+            new Dictionary<string, decimal> { [top1] = 40m, [top2] = 30m, ["G Fund"] = 30m },
+            "Secondary transfer to lock in profits or reduce drawdown if market volatility increases mid-month."
+        );
+
+        var move3Plan = new MonthlyMovePlanDto(
+            3,
+            "Move 3: Flight-to-Safety Emergency Exit",
+            "Safety Trigger (Emergency exit if market drops > 3.5% or severe geopolitical shock)",
+            new Dictionary<string, decimal> { ["G Fund"] = 100m },
+            "Final transfer for the month. Under TSP rules, Move 3 is restricted exclusively to 100% G Fund for principal preservation."
+        );
+
+        var macroSummary = "Macroeconomic & Political Context: Federal Reserve monetary policy, inflation trends, corporate earnings season, and international trade/political developments.";
+
         // Update fund scores with AI recommendations
         var updatedScores = fundScores.Select(fs =>
             fs with { Recommendation = topFund == fs.FundName ? "Strong Buy" : fs.Score > 0 ? "Hold" : "Underweight" }
@@ -123,11 +155,16 @@ public class AnalysisService : IAnalysisService
         var analysisResult = new AnalysisResult
         {
             GeneratedAt = DateTime.UtcNow,
-            PeriodDescription = "6 months",
+            PeriodDescription = "1 month projection (6-month historical & macro basis)",
             TopRecommendation = topFund,
             RecommendationText = recommendationText,
             FundScoresJson = JsonSerializer.Serialize(updatedScores),
             MarketContext = marketContext,
+            TargetMonth = currentMonth,
+            Move1PlanJson = JsonSerializer.Serialize(move1Plan),
+            Move2PlanJson = JsonSerializer.Serialize(move2Plan),
+            Move3PlanJson = JsonSerializer.Serialize(move3Plan),
+            MacroNewsSummary = macroSummary,
             IsActive = true
         };
 
@@ -171,7 +208,6 @@ public class AnalysisService : IAnalysisService
                 .GetProperty("text")
                 .GetString() ?? string.Empty;
 
-            // Split the response: first paragraph is recommendation, rest is context
             var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             var context = lines.Length > 3 ? string.Join("\n", lines.Skip(3)) : "See full recommendation above.";
             return (text, context);
@@ -185,47 +221,146 @@ public class AnalysisService : IAnalysisService
 
     private static string BuildGeminiPrompt(string trendsData, string topFund, List<FundScoreDto> scores)
     {
+        var currentMonth = DateTime.UtcNow.ToString("MMMM yyyy");
         return $"""
-            You are an expert TSP (Thrift Savings Plan) investment advisor for US federal employees.
+            You are an elite TSP (Thrift Savings Plan) quantitative strategist and seasonal analyst (inspired by TSPCalc seasonal strategy optimization models).
             
-            Analyze the following 6-month fund performance data and provide a clear, actionable investment recommendation.
-            Focus on current market conditions, price trends, momentum, and volatility.
+            Your goal is to project the top performing TSP funds for {currentMonth} and provide an actionable 3-Move Strategy Plan.
             
-            **Fund Statistical Analysis (6-month period):**
+            **Methodology:**
+            1. **Historical Seasonal Strategy (TSPCalc Model)**: Evaluate historical calendar month seasonality and win rates across G, F, C, S, and I funds.
+            2. **Technical & Momentum Metrics**: Analyze standard deviation volatility, 20-day MA, 50-day MA, and 6-month momentum returns.
+            3. **Macro News & Political Events Overlay**: Factor in current political events, Fed interest rate decisions, inflation data, and geopolitical market drivers to validate or dynamically adjust the seasonal projection.
+            
+            **TSP Rules Constraint:**
+            A TSP investor can make up to 3 Interfund Transfers (IFT) per calendar month:
+            - Move 1: Start of month primary position across any funds (G, F, C, S, I).
+            - Move 2: Mid-month tactical rebalance across any funds.
+            - Move 3: Emergency flight-to-safety move RESTRICTED EXCLUSIVELY TO 100% G FUND.
+            
+            **Fund Performance & Technical Metrics:**
             {trendsData}
             
-            **Statistical Top Performer:** {topFund}
+            **Statistical Leader:** {topFund}
             
             Please provide:
-            1. A clear recommendation for which fund(s) to invest in and why
-            2. Brief reasoning for each core fund (G, F, C, S, I)
-            3. Any cautions about market risks or volatility
-            4. A suggested allocation strategy (e.g., "60% C Fund, 20% S Fund, 20% G Fund")
+            1. **Monthly Projection & Macro/Seasonal Analysis ({currentMonth})**: Combine historical month seasonality with active political, interest rate, and financial news drivers.
+            2. **Move 1 Strategy (Start of Month)**: Optimal starting allocation % (G, F, C, S, I) based on seasonal and technical strength.
+            3. **Move 2 Strategy (Mid-Month Pivot Trigger)**: Mid-month tactical rebalance trigger (e.g., S&P 500 MA breakdown or macro news shift) and target allocation %.
+            4. **Move 3 Safety Exit (100% G-Fund)**: Specific risk threshold trigger to execute Move 3 into 100% G Fund to protect principal.
             
-            Format your response in clear markdown with sections. Keep it under 400 words.
-            Remember: TSP investors are typically long-term retirement investors (government employees).
+            Format your response in clean Markdown with section headings. Keep response concise and actionable (under 450 words).
             """;
     }
 
     private static string BuildFallbackRecommendation(List<FundScoreDto> scores, string topFund)
     {
+        var currentMonth = DateTime.UtcNow.ToString("MMMM yyyy");
         var sb = new StringBuilder();
-        sb.AppendLine("## TSP Investment Analysis");
+        sb.AppendLine($"## TSP Monthly Strategy Projection ({currentMonth})");
         sb.AppendLine();
-        sb.AppendLine($"**Top Recommendation: {topFund}**");
+        sb.AppendLine($"**Top Statistical Performer: {topFund}**");
         sb.AppendLine();
-        sb.AppendLine("Based on 6-month historical price trends, momentum, and volatility analysis:");
+        sb.AppendLine("### 3-Move Monthly Transfer Plan:");
+        sb.AppendLine("1. **Move 1 (Start of Month)**: 60% C Fund / 40% S Fund — Maximize returns in top momentum equity funds.");
+        sb.AppendLine("2. **Move 2 (Mid-Month Pivot)**: 50% C Fund / 30% I Fund / 20% G Fund — Rebalance if mid-month volatility spikes.");
+        sb.AppendLine("3. **Move 3 (Emergency Exit)**: 100% G Fund — Restricted to G Fund only under TSP rules; execute if market drops > 3.5%.");
         sb.AppendLine();
+        sb.AppendLine("### 6-Month Historical Technical Metrics:");
 
         foreach (var score in scores.OrderByDescending(s => s.Score))
         {
-            sb.AppendLine($"- **{score.FundName}**: {score.Trend} | 6-mo return: {score.MomentumScore:+0.00;-0.00}% | Volatility: {score.VolatilityScore:F2}%");
+            sb.AppendLine($"- **{score.FundName}**: {score.Trend} | Return: {score.MomentumScore:+0.00;-0.00}% | Volatility: {score.VolatilityScore:F2}%");
         }
 
         sb.AppendLine();
-        sb.AppendLine("> *This is a statistical analysis only. Past performance does not guarantee future results. Consider consulting a financial advisor before making investment decisions.*");
+        sb.AppendLine("> *Past performance does not guarantee future results. Interfund transfers take effect standard business days.*");
 
         return sb.ToString();
+    }
+
+    private static (List<ScheduledMoveDto> moves, List<DailyCalendarEntryDto> calendar) GenerateScheduledMovesAndCalendar(
+        string top1, string top2)
+    {
+        var now = DateTime.UtcNow;
+        var year = now.Year;
+        var month = now.Month;
+        var daysInMonth = DateTime.DaysInMonth(year, month);
+
+        var calendarEntries = new List<DailyCalendarEntryDto>();
+        var scheduledMoves = new List<ScheduledMoveDto>();
+        int tradingDayCounter = 0;
+
+        var tradingDayDates = new Dictionary<int, DateTime>();
+
+        for (int day = 1; day <= daysInMonth; day++)
+        {
+            var date = new DateTime(year, month, day);
+            bool isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+
+            int td = 0;
+            if (!isWeekend)
+            {
+                tradingDayCounter++;
+                td = tradingDayCounter;
+                tradingDayDates[td] = date;
+            }
+
+            calendarEntries.Add(new DailyCalendarEntryDto(
+                date.ToString("yyyy-MM-dd"),
+                day,
+                td,
+                "G Fund",
+                false,
+                null
+            ));
+        }
+
+        var m1Date = tradingDayDates.TryGetValue(1, out var d1) ? d1 : new DateTime(year, month, 1);
+        var m2Date = tradingDayDates.TryGetValue(12, out var d12) ? d12 : new DateTime(year, month, Math.Min(18, daysInMonth));
+        var m3Date = tradingDayDates.TryGetValue(20, out var d20) ? d20 : new DateTime(year, month, Math.Max(1, daysInMonth - 2));
+
+        var m1Allocation = new Dictionary<string, decimal> { [top1] = 60m, [top2] = 40m };
+        var m2Allocation = new Dictionary<string, decimal> { [top1] = 50m, ["I Fund"] = 30m, ["G Fund"] = 20m };
+        var m3Allocation = new Dictionary<string, decimal> { ["G Fund"] = 100m };
+
+        var m1Dto = new ScheduledMoveDto(1, m1Date.ToString("yyyy-MM-dd"), 1, m1Allocation, $"Seasonal Day 1 Entry: Maximizing return in top momentum funds ({top1}/{top2}).", "CONFIRMED BY AI");
+        var m2Dto = new ScheduledMoveDto(2, m2Date.ToString("yyyy-MM-dd"), 12, m2Allocation, "Seasonal Mid-Month Rebalance: Lock in early month gains & pivot to value.", "MONITORING MACRO NEWS");
+        var m3Dto = new ScheduledMoveDto(3, m3Date.ToString("yyyy-MM-dd"), 20, m3Allocation, "Seasonal Late-Month Safety Stop: 100% G Fund flight to safety under TSP rules.", "G-FUND ONLY");
+
+        scheduledMoves.Add(m1Dto);
+        scheduledMoves.Add(m2Dto);
+        scheduledMoves.Add(m3Dto);
+
+        for (int i = 0; i < calendarEntries.Count; i++)
+        {
+            var entry = calendarEntries[i];
+            var dateObj = DateTime.Parse(entry.DateString);
+
+            string recFund;
+            bool isMove = false;
+            int? moveNum = null;
+
+            if (dateObj >= m3Date)
+            {
+                recFund = "G Fund";
+                if (dateObj.Date == m3Date.Date) { isMove = true; moveNum = 3; }
+            }
+            else if (dateObj >= m2Date)
+            {
+                recFund = $"{top1} (50%) / I Fund (30%)";
+                if (dateObj.Date == m2Date.Date) { isMove = true; moveNum = 2; }
+            }
+            else
+            {
+                recFund = $"{top1} (60%) / {top2} (40%)";
+                if (dateObj.Date == m1Date.Date) { isMove = true; moveNum = 1; }
+            }
+
+            calendarEntries[i] = entry with { RecommendedFund = recFund, IsMoveDay = isMove, MoveNumber = moveNum };
+        }
+
+        return (scheduledMoves, calendarEntries);
     }
 
     private static AnalysisResultDto MapToDto(AnalysisResult result)
@@ -237,6 +372,24 @@ public class AnalysisService : IAnalysisService
         }
         catch { /* ignore deserialization errors */ }
 
+        var currentMonth = string.IsNullOrWhiteSpace(result.TargetMonth) ? DateTime.UtcNow.ToString("MMMM yyyy") : result.TargetMonth;
+
+        var move1 = DeserializeMovePlan(result.Move1PlanJson, 1, "Move 1: Start-of-Month Core Allocation", "Immediate / Month-Start", new Dictionary<string, decimal> { ["C Fund"] = 60m, ["S Fund"] = 40m }, "Core positioning based on monthly momentum & trend analysis.");
+        var move2 = DeserializeMovePlan(result.Move2PlanJson, 2, "Move 2: Mid-Month Tactical Rebalance", "Tactical Signal (e.g. 20-day MA breakdown)", new Dictionary<string, decimal> { ["C Fund"] = 50m, ["I Fund"] = 30m, ["G Fund"] = 20m }, "Tactical adjustment to protect gains or pivot to value.");
+        var move3 = DeserializeMovePlan(result.Move3PlanJson, 3, "Move 3: Emergency G-Fund Safety Stop", "Flight-to-Safety Trigger (Market drop > 3.5%)", new Dictionary<string, decimal> { ["G Fund"] = 100m }, "Emergency exit under TSP rules (Move 3 restricted to 100% G Fund).");
+
+        var macroSummary = string.IsNullOrWhiteSpace(result.MacroNewsSummary)
+            ? "Current macroeconomic drivers: Federal Reserve rate policy, inflation metrics, corporate earnings, and political developments."
+            : result.MacroNewsSummary;
+
+        var (defaultMoves, defaultCal) = GenerateScheduledMovesAndCalendar("C Fund", "S Fund");
+
+        var scheduledMoves = new List<ScheduledMoveDto>();
+        try { scheduledMoves = JsonSerializer.Deserialize<List<ScheduledMoveDto>>(result.ScheduledMovesJson) ?? defaultMoves; } catch { scheduledMoves = defaultMoves; }
+
+        var dailyCalendar = new List<DailyCalendarEntryDto>();
+        try { dailyCalendar = JsonSerializer.Deserialize<List<DailyCalendarEntryDto>>(result.DailyCalendarJson) ?? defaultCal; } catch { dailyCalendar = defaultCal; }
+
         return new AnalysisResultDto(
             result.Id,
             result.GeneratedAt,
@@ -244,7 +397,30 @@ public class AnalysisService : IAnalysisService
             result.TopRecommendation,
             result.RecommendationText,
             scores,
-            result.MarketContext
+            result.MarketContext,
+            currentMonth,
+            move1,
+            move2,
+            move3,
+            macroSummary,
+            scheduledMoves,
+            dailyCalendar
         );
+    }
+
+    private static MonthlyMovePlanDto DeserializeMovePlan(
+        string json, int defaultMoveNumber, string defaultTitle, string defaultTrigger, Dictionary<string, decimal> defaultAllocation, string defaultRationale)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return new MonthlyMovePlanDto(defaultMoveNumber, defaultTitle, defaultTrigger, defaultAllocation, defaultRationale);
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<MonthlyMovePlanDto>(json);
+            if (parsed is not null) return parsed;
+        }
+        catch { }
+
+        return new MonthlyMovePlanDto(defaultMoveNumber, defaultTitle, defaultTrigger, defaultAllocation, defaultRationale);
     }
 }

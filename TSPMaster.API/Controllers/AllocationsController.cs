@@ -31,6 +31,15 @@ public class AllocationsController : ControllerBase
         return Ok(allocations);
     }
 
+    /// <summary>Get the current user's monthly transfer status (remaining IFT moves).</summary>
+    [HttpGet("status")]
+    [ProducesResponseType(typeof(TransferStatusDto), 200)]
+    public async Task<ActionResult<TransferStatusDto>> GetTransferStatus()
+    {
+        var status = await _allocationService.GetTransferStatusAsync(UserId);
+        return Ok(status);
+    }
+
     /// <summary>Set the current user's fund allocations. Percentages must sum to 100.</summary>
     [HttpPut]
     [ProducesResponseType(typeof(List<AllocationDto>), 200)]

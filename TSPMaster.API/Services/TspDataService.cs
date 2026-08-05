@@ -57,6 +57,24 @@ public class TspDataService : ITspDataService
 
     public IReadOnlyList<string> GetAllFundNames() => AllFundNames;
 
+    public async Task EnsurePricesUpToDateAsync(CancellationToken cancellationToken = default)
+    {
+        var targetDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
+        var latestExisting = await _db.FundPrices
+            .MaxAsync(f => (DateOnly?)f.Date, cancellationToken);
+
+        if (!latestExisting.HasValue || latestExisting.Value < targetDate)
+        {
+            _logger.LogInformation("Fund prices out of date (latest DB date: {Latest}, target: {Target}). Triggering price sync.",
+                latestExisting?.ToString("yyyy-MM-dd") ?? "none", targetDate.ToString("yyyy-MM-dd"));
+            await SyncAsync(cancellationToken);
+        }
+        else
+        {
+            _logger.LogInformation("Fund prices are up to date through {Latest}.", latestExisting.Value.ToString("yyyy-MM-dd"));
+        }
+    }
+
     public async Task SyncAsync(CancellationToken cancellationToken = default)
     {
         var csvUrl = _config["TspData:CsvUrl"] ?? "https://www.tsp.gov/data/fund-price-history.csv";

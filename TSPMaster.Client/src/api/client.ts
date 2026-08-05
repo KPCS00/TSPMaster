@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? '/api' : 'http://api.tspmaster.com/api'),
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -32,9 +32,6 @@ export const authApi = {
 
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data).then(r => r.data),
-
-  googleLogin: (idToken: string) =>
-    api.post('/auth/google', { idToken }).then(r => r.data),
 }
 
 // ─── Funds ───────────────────────────────────────────────────────
@@ -51,6 +48,7 @@ export const fundsApi = {
 // ─── Allocations ─────────────────────────────────────────────────
 export const allocationsApi = {
   get: () => api.get('/allocations').then(r => r.data),
+  getStatus: () => api.get('/allocations/status').then(r => r.data),
   set: (allocations: { fundName: string; percentage: number }[]) =>
     api.put('/allocations', { allocations }).then(r => r.data),
 }

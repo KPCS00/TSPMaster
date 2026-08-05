@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
 import { authApi } from '../api/client'
 import { LogIn } from 'lucide-react'
@@ -26,34 +25,16 @@ export default function Login() {
       login(data)
       navigate('/')
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Login failed. Please check your credentials.')
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      if (!axiosErr.response) {
+        setError('Network / connection error: Please make sure you are accessing http://tspmaster.com (HTTP).')
+      } else {
+        const msg = axiosErr.response?.data?.message
+        setError(msg ?? 'Login failed. Please check your credentials.')
+      }
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
-    if (!credentialResponse.credential) {
-      setError('Google login failed: no credential received.')
-      return
-    }
-    setLoading(true)
-    setError('')
-    try {
-      const data = await authApi.googleLogin(credentialResponse.credential)
-      login(data)
-      navigate('/')
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Google sign-in failed. Please verify server setup.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleGoogleError = () => {
-    setError('Google sign-in was canceled or failed.')
   }
 
   return (
@@ -75,22 +56,6 @@ export default function Login() {
             <span>⚠️</span> {error}
           </div>
         )}
-
-        <div className="google-btn-wrapper">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-            useOneTap
-            theme="filled_blue"
-            shape="rectangular"
-            text="signin_with"
-            size="large"
-          />
-        </div>
-
-        <div className="auth-divider">
-          <span>or sign in with email</span>
-        </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">

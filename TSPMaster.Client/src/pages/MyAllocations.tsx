@@ -16,28 +16,42 @@ const FUND_COLORS: Record<string, string> = {
   'L 2055': '#a855f7', 'L 2060': '#f43f5e', 'L 2065': '#0ea5e9', 'L 2070': '#22c55e', 'L 2075': '#eab308',
 }
 
+interface TransferStatus {
+  transfersUsed: number
+  remainingTransfers: number
+  maxTransfers: number
+  isMove3GFundOnly: boolean
+  currentMonth: string
+}
+
 export default function MyAllocations() {
   const [allocations, setAllocations] = useState<AllocationItem[]>(
     ALL_FUNDS.map(f => ({ fundName: f, percentage: 0 }))
   )
+  const [transferStatus, setTransferStatus] = useState<TransferStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data: AllocationItem[] = await allocationsApi.get()
-        setAllocations(ALL_FUNDS.map(f => ({
-          fundName: f,
-          percentage: data.find(d => d.fundName === f)?.percentage ?? 0
-        })))
-      } catch (e) { console.error(e) }
-      finally { setLoading(false) }
-    }
-    load()
+  const loadData = useCallback(async () => {
+    try {
+      const [data, status] = await Promise.all([
+        allocationsApi.get(),
+        allocationsApi.getStatus().catch(() => null)
+      ])
+      setAllocations(ALL_FUNDS.map(f => ({
+        fundName: f,
+        percentage: data.find((d: AllocationItem) => d.fundName === f)?.percentage ?? 0
+      })))
+      if (status) setTransferStatus(status)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
   }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const total = allocations.reduce((sum, a) => sum + a.percentage, 0)
   const isValid = Math.abs(total - 100) < 0.01
@@ -55,6 +69,7 @@ export default function MyAllocations() {
     try {
       await allocationsApi.set(allocations.filter(a => a.percentage > 0))
       setSuccess(true)
+      await loadData()
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -68,10 +83,41 @@ export default function MyAllocations() {
 
   return (
     <div className="fade-in">
-      <div className="page-header">
-        <h1 className="page-title">My Allocations</h1>
-        <p className="page-subtitle">Set your TSP contribution percentage for each fund. Must total 100%.</p>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 className="page-title">My Allocations</h1>
+          <p className="page-subtitle">Set your TSP fund allocations. Interfund Transfers (IFT) are subject to 3 moves/month rules.</p>
+        </div>
+
+        {transferStatus && (
+          <div style={{
+            background: 'var(--clr-surface-2)',
+            border: '1px solid var(--clr-border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '8px 16px',
+            textAlign: 'right'
+          }}>
+            <div style={{ fontSize: 11, color: 'var(--clr-text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+              Monthly Transfers ({transferStatus.currentMonth})
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: transferStatus.remainingTransfers === 0 ? '#ef4444' : transferStatus.isMove3GFundOnly ? '#10b981' : 'var(--clr-primary)' }}>
+              {transferStatus.transfersUsed} / {transferStatus.maxTransfers} Moves Used ({transferStatus.remainingTransfers} Left)
+            </div>
+          </div>
+        )}
       </div>
+
+      {transferStatus?.isMove3GFundOnly && (
+        <div className="alert alert-warning mb-lg" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          🛡️ <strong>Move 3 Warning:</strong> You are on your 3rd Interfund Transfer of the month. Under TSP rules, this move is restricted exclusively to <strong>100% G Fund</strong>.
+        </div>
+      )}
+
+      {transferStatus?.remainingTransfers === 0 && (
+        <div className="alert alert-error mb-lg" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          🚫 <strong>Transfer Limit Reached:</strong> You have executed all 3 Interfund Transfers allowed for {transferStatus.currentMonth}. Moves reset on the 1st of next month.
+        </div>
+      )}
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         {/* Slider Controls */}
@@ -127,7 +173,7 @@ export default function MyAllocations() {
                 id="save-allocations"
                 className="btn btn-primary"
                 onClick={handleSave}
-                disabled={saving || !isValid}
+                disabled={saving || !isValid || transferStatus?.remainingTransfers === 0}
                 style={{ marginTop: 'var(--space-md)', width: '100%', justifyContent: 'center' }}
               >
                 {saving ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <><Save size={16} /> Save Allocations</>}

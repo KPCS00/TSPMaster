@@ -106,6 +106,66 @@ public class SesEmailService : IEmailService
         await SendEmailAsync(toEmail, "Reset Your TSP Master Password", html);
     }
 
+    public async Task SendDailyRecommendationEmailAsync(
+        string toEmail, string firstName, string recommendationSummary, string actionAdvice, int remainingTransfers, string currentMonth)
+    {
+        var subject = $"⏰ [10:30 AM CST Alert] TSP Daily Strategy Recommendation ({DateTime.UtcNow:MMM dd})";
+        var html = $"""
+            <html><body style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; color: #1e293b;">
+              <div style="background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 25px; border-radius: 8px 8px 0 0; text-align: center;">
+                <h1 style="color: #60a5fa; margin: 0; font-size: 24px;">📊 TSP Master Morning Briefing</h1>
+                <div style="color: #fbbf24; font-size: 13px; font-weight: bold; margin-top: 6px;">
+                  ⏰ 10:30 AM CST — 30 Minutes Before 11:00 AM CST TSP.gov Trade Deadline
+                </div>
+              </div>
+              
+              <div style="padding: 25px; background: #ffffff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+                <p style="font-size: 16px; font-weight: bold; color: #0f172a; margin-top: 0;">Hi {firstName},</p>
+                
+                <p style="font-size: 14px; line-height: 1.6;">
+                  Here is your daily AI-driven strategy briefing for <strong>{currentMonth}</strong>. To ensure trades execute overnight and take effect tomorrow, any Interfund Transfers (IFT) must be submitted on <strong>TSP.gov before 11:00 AM CST</strong> today.
+                </p>
+
+                <!-- Action Directive Box -->
+                <div style="background: #eff6ff; border-left: 5px solid #2563eb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                  <div style="font-size: 11px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">
+                    🎯 Recommended Daily Action
+                  </div>
+                  <div style="font-size: 16px; font-weight: bold; color: #1e293b; margin-top: 4px;">
+                    {actionAdvice}
+                  </div>
+                  <div style="font-size: 12px; color: #64748b; margin-top: 6px;">
+                    Remaining IFT Moves for {currentMonth}: <strong>{remainingTransfers} of 3</strong>
+                  </div>
+                </div>
+
+                <!-- Briefing Details -->
+                <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                  <div style="font-size: 13px; font-weight: bold; color: #334155; margin-bottom: 8px;">
+                    📈 Market & Monthly Strategy Summary
+                  </div>
+                  <div style="font-size: 13px; color: #475569; line-height: 1.5; white-space: pre-line;">
+                    {recommendationSummary}
+                  </div>
+                </div>
+
+                <!-- TSP.gov Link CTA -->
+                <div style="text-align: center; margin: 25px 0 15px;">
+                  <a href="https://www.tsp.gov" target="_blank" style="background: #2563eb; color: #ffffff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
+                    Log into TSP.gov to Submit Trade &rarr;
+                  </a>
+                </div>
+
+                <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-top: 25px; line-height: 1.4;">
+                  <em>Notice: Interfund transfers must be submitted on TSP.gov prior to 11:00 AM CST (12:00 PM EST). This automated email is provided for informational and planning purposes only and does not constitute financial advice.</em>
+                </p>
+              </div>
+            </body></html>
+            """;
+
+        await SendEmailAsync(toEmail, subject, html);
+    }
+
     private AmazonSimpleEmailServiceClient CreateSesClient()
     {
         var region = RegionEndpoint.GetBySystemName(_config["AWS:Region"] ?? "us-east-1");

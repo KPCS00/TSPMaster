@@ -25,6 +25,27 @@ public class AnalysisResult
     /// <summary>Market sentiment summary used in analysis.</summary>
     public string MarketContext { get; set; } = string.Empty;
 
+    /// <summary>Target calendar month for this strategy (e.g. "August 2026").</summary>
+    public string TargetMonth { get; set; } = string.Empty;
+
+    /// <summary>Move 1 Plan (Start of month allocation and reasoning).</summary>
+    public string Move1PlanJson { get; set; } = "{}";
+
+    /// <summary>Move 2 Plan (Mid-month tactical adjustment trigger and target allocation).</summary>
+    public string Move2PlanJson { get; set; } = "{}";
+
+    /// <summary>Move 3 Plan (Flight-to-safety emergency trigger into 100% G Fund).</summary>
+    public string Move3PlanJson { get; set; } = "{}";
+
+    /// <summary>Summary of political, macroeconomic, and financial news drivers.</summary>
+    public string MacroNewsSummary { get; set; } = string.Empty;
+
+    /// <summary>JSON-serialized array of specific scheduled moves with exact calendar dates.</summary>
+    public string ScheduledMovesJson { get; set; } = "[]";
+
+    /// <summary>JSON-serialized day-by-day fund calendar entries for the current month.</summary>
+    public string DailyCalendarJson { get; set; } = "[]";
+
     /// <summary>Whether this is the current active recommendation.</summary>
     public bool IsActive { get; set; } = true;
 }

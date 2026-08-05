@@ -12,10 +12,6 @@ public record LoginRequest(
     string Password
 );
 
-public record GoogleLoginRequest(
-    string IdToken
-);
-
 public record AuthResponse(
     string Token,
     DateTime ExpiresAt,

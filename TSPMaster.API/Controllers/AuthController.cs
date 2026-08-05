@@ -1,4 +1,3 @@
-using Google.Apis.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TSPMaster.API.Dtos.Auth;
@@ -17,6 +16,7 @@ public class AuthController : ControllerBase
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ITokenService _tokenService;
     private readonly IEmailService _emailService;
+    private readonly ITspDataService _tspData;
     private readonly IConfiguration _config;
     private readonly ILogger<AuthController> _logger;
 
@@ -25,6 +25,7 @@ public class AuthController : ControllerBase
         SignInManager<ApplicationUser> signInManager,
         ITokenService tokenService,
         IEmailService emailService,
+        ITspDataService tspData,
         IConfiguration config,
         ILogger<AuthController> logger)
     {
@@ -32,6 +33,7 @@ public class AuthController : ControllerBase
         _signInManager = signInManager;
         _tokenService = tokenService;
         _emailService = emailService;
+        _tspData = tspData;
         _config = config;
         _logger = logger;
     }
@@ -74,6 +76,7 @@ public class AuthController : ControllerBase
         var token = _tokenService.GenerateToken(user, roles);
 
         _logger.LogInformation("User registered: {Email}", user.Email);
+        await _tspData.EnsurePricesUpToDateAsync();
         return Ok(new AuthResponse(token, DateTime.UtcNow.AddHours(24), user.Id, user.Email!, user.FirstName, user.LastName));
     }
 
@@ -101,62 +104,7 @@ public class AuthController : ControllerBase
         var token = _tokenService.GenerateToken(user, roles);
 
         _logger.LogInformation("User logged in: {Email}", user.Email);
-        return Ok(new AuthResponse(token, DateTime.UtcNow.AddHours(24), user.Id, user.Email!, user.FirstName, user.LastName));
-    }
-
-    /// <summary>Login or register via Google ID token.</summary>
-    [HttpPost("google")]
-    [ProducesResponseType(typeof(AuthResponse), 200)]
-    [ProducesResponseType(400)]
-    public async Task<ActionResult<AuthResponse>> GoogleLogin([FromBody] GoogleLoginRequest request)
-    {
-        var clientId = _config["Google:ClientId"]
-            ?? throw new InvalidOperationException("Google:ClientId not configured.");
-
-        GoogleJsonWebSignature.Payload payload;
-        try
-        {
-            payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken,
-                new GoogleJsonWebSignature.ValidationSettings { Audience = [clientId] });
-        }
-        catch (InvalidJwtException ex)
-        {
-            _logger.LogWarning("Invalid Google token: {Message}", ex.Message);
-            return BadRequest(new { message = "Invalid Google token." });
-        }
-
-        // Find or create user
-        var user = await _userManager.FindByEmailAsync(payload.Email);
-        if (user is null)
-        {
-            user = new ApplicationUser
-            {
-                UserName = payload.Email,
-                Email = payload.Email,
-                FirstName = payload.GivenName ?? string.Empty,
-                LastName = payload.FamilyName ?? string.Empty,
-                GoogleId = payload.Subject,
-                EmailConfirmed = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            var createResult = await _userManager.CreateAsync(user);
-            if (!createResult.Succeeded)
-                return BadRequest(new { message = "Failed to create user account." });
-
-            await _userManager.AddToRoleAsync(user, "User");
-        }
-        else
-        {
-            user.GoogleId ??= payload.Subject;
-            user.LastLoginAt = DateTime.UtcNow;
-            await _userManager.UpdateAsync(user);
-        }
-
-        var roles = await _userManager.GetRolesAsync(user);
-        var token = _tokenService.GenerateToken(user, roles);
-
-        _logger.LogInformation("Google login: {Email}", user.Email);
+        await _tspData.EnsurePricesUpToDateAsync();
         return Ok(new AuthResponse(token, DateTime.UtcNow.AddHours(24), user.Id, user.Email!, user.FirstName, user.LastName));
     }
 }
