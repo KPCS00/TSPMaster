@@ -7,7 +7,23 @@
     <RootNamespace>TSPMaster.API</RootNamespace>
     <AssemblyName>TSPMaster.API</AssemblyName>
     <UserSecretsId>tspmaster-api-secrets</UserSecretsId>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
+
+  <!-- Prevent satellite resource language folders (e.g. cs, de, es, fr, it, ja, ko, pl, pt-BR, ru, tr, zh-Hans, zh-Hant) from being copied -->
+  <Target Name="RemoveSatelliteAssemblies" BeforeTargets="PrepareForPublish;Build">
+    <ItemGroup>
+      <ResourceLanguage Remove="@(ResourceLanguage)" Condition="'%(ResourceLanguage.Identity)' != 'en'" />
+      <IntermediateSatelliteAssembliesWithTargetPath Remove="@(IntermediateSatelliteAssembliesWithTargetPath)" />
+      <ReferenceSatellitePaths Remove="@(ReferenceSatellitePaths)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="RemoveSatelliteAssembliesFromPublish" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFilesToPublish Remove="@(ResolvedFilesToPublish)" Condition="'%(ResolvedFilesToPublish.Culture)' != '' And '%(ResolvedFilesToPublish.Culture)' != 'en'" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <!-- EF Core + SQL Server -->
