@@ -34,4 +34,4 @@ desktop.ini
 *.DotSettings.user
 /publish
 /publish_sc
-/publish
+/publish_client
