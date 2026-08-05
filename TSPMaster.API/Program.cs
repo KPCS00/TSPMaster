@@ -144,20 +144,16 @@ try
     }
 
     // ─── Middleware Pipeline ──────────────────────────────────────────────────
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "TSP Master API v1"));
-    }
-
-    app.UseHttpsRedirection();
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
     app.UseCors("AllowClient");
+
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "TSP Master API v1"));
+
     app.UseAuthentication();
     app.UseAuthorization();
+
+    app.MapGet("/", () => Results.Ok(new { status = "Healthy", service = "TSPMaster.API", domain = "api.tspmaster.com" }));
     app.MapControllers();
-    app.MapFallbackToFile("index.html");
 
     await app.RunAsync();
 }

@@ -7,6 +7,7 @@ namespace TSPMaster.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("[controller]")]
 public class AnalysisController : ControllerBase
 {
     private readonly IAnalysisService _analysisService;

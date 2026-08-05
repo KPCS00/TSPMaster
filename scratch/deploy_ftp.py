@@ -4,7 +4,7 @@ import ssl
 
 host = 'WIN8236.site4now.net'
 user = 'tspmasterprd'
-passwd = 'tspmasterprd'
+passwd = 'ftp@dm1n1str@t0r'
 local_publish_dir = r'C:\GitHub\TSPMaster\publish'
 
 def upload_dir(ftp, local_dir, remote_dir):

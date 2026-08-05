@@ -10,6 +10,7 @@ namespace TSPMaster.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class UsersController : ControllerBase
 {

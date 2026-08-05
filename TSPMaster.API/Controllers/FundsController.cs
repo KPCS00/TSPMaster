@@ -7,6 +7,7 @@ namespace TSPMaster.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("[controller]")]
 public class FundsController : ControllerBase
 {
     private readonly ITspDataService _tspData;
