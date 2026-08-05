@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <SpaRoot>.\</SpaRoot>
+    <DefaultItemExcludes>$(DefaultItemExcludes);node_modules\**</DefaultItemExcludes>
+    <UserSecretsId>tspmaster-client-secrets</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="$(SpaRoot)node_modules\**" />
+  </ItemGroup>
+
+  <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
+    <Exec Command="node --version" ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="ErrorCode" />
+    </Exec>
+    <Error Condition="'$(ErrorCode)' != '0'" Text="Node.js is required to build and run this project. Please download it from https://nodejs.org/" />
+    <Message Importance="high" Text="Restoring dependencies using 'npm'..." />
+    <Exec Command="npm install" WorkingDirectory="$(SpaRoot)" />
+  </Target>
+
+  <Target Name="BuildClientAssets" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release' Or '$(BuildingForPublish)' == 'true'">
+    <Message Importance="high" Text="Building SPA assets with Vite..." />
+    <Exec Command="npm install" WorkingDirectory="$(SpaRoot)" Condition="!Exists('$(SpaRoot)node_modules')" />
+    <Exec Command="npm run build" WorkingDirectory="$(SpaRoot)" />
+  </Target>
+
+</Project>
