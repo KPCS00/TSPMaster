@@ -36,8 +36,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
     <!-- JWT Bearer Auth -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
-    <!-- Google Auth -->
-    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
     <!-- AWS SES -->
     <PackageReference Include="AWSSDK.SimpleEmail" Version="3.7.401" />
     <!-- NLog -->
@@ -47,6 +45,10 @@
     <!-- CSV parsing -->
     <PackageReference Include="CsvHelper" Version="33.0.1" />
     <!-- Microsoft.Extensions.Http is included in the ASP.NET Core shared framework -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TSPMaster.Client\TSPMaster.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

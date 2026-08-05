@@ -88,7 +88,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(e => e.FirstName).HasMaxLength(100);
             entity.Property(e => e.LastName).HasMaxLength(100);
-            entity.Property(e => e.GoogleId).HasMaxLength(200);
         });
     }
 }

@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <Content Remove="$(SpaRoot)node_modules\**" />
+    <Content Update="appsettings*.json" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
   <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">

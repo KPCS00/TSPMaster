@@ -32,7 +32,7 @@ export default function Register() {
       login(data)
       navigate('/')
     } catch (err: unknown) {
-      const respData = (err as { response?: { data?: any } })?.response?.data
+      const respData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data
       let msgs = 'Registration failed. Please try again.'
       if (respData) {
         if (respData.errors && typeof respData.errors === 'object') {
