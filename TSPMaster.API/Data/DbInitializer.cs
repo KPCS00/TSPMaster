@@ -39,8 +39,8 @@ public static class DbInitializer
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during database initialization.");
-            throw;
+            logger.LogError(ex, "Error during database initialization. The API will continue to start but DB-dependent features may be unavailable.");
+            // Do NOT re-throw — a migration/connection failure should not bring the entire API down.
         }
     }
 }

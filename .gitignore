@@ -32,3 +32,6 @@ desktop.ini
 # ─── Rider / JetBrains ────────────────────────────────────────────────────────
 .idea/
 *.DotSettings.user
+/publish
+/publish_sc
+/publish
