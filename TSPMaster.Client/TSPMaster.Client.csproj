@@ -38,10 +38,9 @@
     <Exec Command="npm install" WorkingDirectory="$(SpaRoot)" />
   </Target>
 
-  <Target Name="BuildClientAssets" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release' Or '$(BuildingForPublish)' == 'true'">
+  <Target Name="BuildClientAssets" BeforeTargets="BeforeBuild;BeforeRebuild;GenerateStaticWebAssetsManifest" Condition="'$(Configuration)' == 'Release' Or '$(BuildingForPublish)' == 'true'">
     <Message Importance="high" Text="Building SPA assets with Vite..." />
-    <Exec Command="npm install" WorkingDirectory="$(SpaRoot)" Condition="!Exists('$(SpaRoot)node_modules')" />
-    <Exec Command="npm run build" WorkingDirectory="$(SpaRoot)" />
+    <Exec Command="npx vite build" WorkingDirectory="$(SpaRoot)" />
   </Target>
 
 </Project>

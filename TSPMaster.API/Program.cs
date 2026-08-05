@@ -71,13 +71,10 @@ try
     builder.Services.AddAuthorization();
 
     // ─── CORS ─────────────────────────────────────────────────────────────────
-    var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-        ?? Array.Empty<string>();
-
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowClient", policy =>
-            policy.WithOrigins(allowedOrigins)
+            policy.SetIsOriginAllowed(_ => true)
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials());
@@ -152,8 +149,12 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapGet("/", () => Results.Ok(new { status = "Healthy", service = "TSPMaster.API", domain = "api.tspmaster.com" }));
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+
+    app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "TSPMaster.API", domain = "api.tspmaster.com" }));
     app.MapControllers();
+    app.MapFallbackToFile("index.html");
 
     await app.RunAsync();
 }

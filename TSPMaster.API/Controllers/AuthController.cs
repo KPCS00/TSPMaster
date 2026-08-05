@@ -54,6 +54,8 @@ public class AuthController : ControllerBase
         var result = await _userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
         {
+            _logger.LogWarning("Registration failed for {Email}: {Errors}",
+                request.Email, string.Join("; ", result.Errors.Select(e => $"{e.Code}: {e.Description}")));
             foreach (var error in result.Errors)
                 ModelState.AddModelError(error.Code, error.Description);
             return ValidationProblem(ModelState);

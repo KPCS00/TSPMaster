@@ -19,7 +19,11 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (form.password.length < 8) {
+    const hasMinLen = form.password.length >= 8
+    const hasUpper = /[A-Z]/.test(form.password)
+    const hasDigit = /[0-9]/.test(form.password)
+
+    if (!hasMinLen || !hasUpper || !hasDigit) {
       setError('Password must be at least 8 characters with a number and uppercase letter.')
       return
     }
@@ -29,8 +33,22 @@ export default function Register() {
       login(data)
       navigate('/')
     } catch (err: unknown) {
-      const resp = (err as { response?: { data?: { errors?: Record<string, string[]> } } })?.response?.data
-      const msgs = resp?.errors ? Object.values(resp.errors).flat().join(' ') : 'Registration failed. Please try again.'
+      const respData = (err as { response?: { data?: any } })?.response?.data
+      let msgs = 'Registration failed. Please try again.'
+      if (respData) {
+        if (respData.errors && typeof respData.errors === 'object') {
+          const joined = Object.values(respData.errors).flat().join(' ')
+          if (joined) msgs = joined
+        } else if (typeof respData.message === 'string') {
+          msgs = respData.message
+        } else if (typeof respData.detail === 'string') {
+          msgs = respData.detail
+        } else if (typeof respData.title === 'string') {
+          msgs = respData.title
+        } else if (typeof respData === 'string') {
+          msgs = respData
+        }
+      }
       setError(msgs)
     } finally {
       setLoading(false)
