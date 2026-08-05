@@ -1,0 +1,34 @@
+# ─── .NET ─────────────────────────────────────────────────────────────────────
+*.user
+*.suo
+.vs/
+bin/
+obj/
+*.log
+logs/
+
+# secrets / config overrides
+appsettings.Production.json
+**/secrets.json
+**/*.pfx
+
+# EF Core migrations generated locally (keep Migrations/ folder, ignore snapshots if desired)
+# Uncomment below if you want to ignore snapshot:
+# **/Migrations/*Snapshot.cs
+
+# ─── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+dist/
+*.local
+.env
+.env.local
+.env.production
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Rider / JetBrains ────────────────────────────────────────────────────────
+.idea/
+*.DotSettings.user

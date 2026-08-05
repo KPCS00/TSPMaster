@@ -1,0 +1,71 @@
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: '/api',
+  headers: { 'Content-Type': 'application/json' },
+})
+
+// Inject JWT token on every request
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('tsp_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+// Auto-logout on 401
+api.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('tsp_token')
+      localStorage.removeItem('tsp_user')
+      window.location.href = '/login'
+    }
+    return Promise.reject(err)
+  }
+)
+
+// ─── Auth ────────────────────────────────────────────────────────
+export const authApi = {
+  register: (data: { firstName: string; lastName: string; email: string; password: string }) =>
+    api.post('/auth/register', data).then(r => r.data),
+
+  login: (data: { email: string; password: string }) =>
+    api.post('/auth/login', data).then(r => r.data),
+
+  googleLogin: (idToken: string) =>
+    api.post('/auth/google', { idToken }).then(r => r.data),
+}
+
+// ─── Funds ───────────────────────────────────────────────────────
+export const fundsApi = {
+  getLatest: () => api.get('/funds/latest').then(r => r.data),
+  getNames: () => api.get('/funds/names').then(r => r.data),
+  getFundHistory: (fundName: string, from?: string, to?: string) =>
+    api.get(`/funds/${encodeURIComponent(fundName)}/history`, { params: { from, to } }).then(r => r.data),
+  getAllHistory: (from?: string, to?: string) =>
+    api.get('/funds/history', { params: { from, to } }).then(r => r.data),
+  sync: () => api.post('/funds/sync').then(r => r.data),
+}
+
+// ─── Allocations ─────────────────────────────────────────────────
+export const allocationsApi = {
+  get: () => api.get('/allocations').then(r => r.data),
+  set: (allocations: { fundName: string; percentage: number }[]) =>
+    api.put('/allocations', { allocations }).then(r => r.data),
+}
+
+// ─── Users ───────────────────────────────────────────────────────
+export const usersApi = {
+  getProfile: () => api.get('/users/me').then(r => r.data),
+  getPerformance: (days?: number) =>
+    api.get('/users/performance', { params: { days } }).then(r => r.data),
+}
+
+// ─── Analysis ────────────────────────────────────────────────────
+export const analysisApi = {
+  getRecommendation: () => api.get('/analysis/recommendation').then(r => r.data),
+  refresh: () => api.post('/analysis/refresh').then(r => r.data),
+}
+
+export default api
