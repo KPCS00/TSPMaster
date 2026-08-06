@@ -19,7 +19,9 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('tsp_token')
       localStorage.removeItem('tsp_user')
-      window.location.href = '/login'
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(err)
   }
@@ -32,7 +34,14 @@ export const authApi = {
 
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data).then(r => r.data),
+
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }).then(r => r.data),
+
+  resetPassword: (data: { email: string; token: string; newPassword: string }) =>
+    api.post('/auth/reset-password', data).then(r => r.data),
 }
+
 
 // ─── Funds ───────────────────────────────────────────────────────
 export const fundsApi = {

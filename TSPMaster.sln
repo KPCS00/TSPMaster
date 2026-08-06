@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TSPMaster.API", "TSPMaster.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TSPMaster.Client", "TSPMaster.Client\TSPMaster.Client.csproj", "{15E64ECB-A927-3E9C-5E5E-8B0385FA73A2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TSPMaster.Tests", "TSPMaster.Tests\TSPMaster.Tests.csproj", "{D85B4605-B4EA-4B94-814E-7C2F7A8E1D99}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{15E64ECB-A927-3E9C-5E5E-8B0385FA73A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{15E64ECB-A927-3E9C-5E5E-8B0385FA73A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{15E64ECB-A927-3E9C-5E5E-8B0385FA73A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D85B4605-B4EA-4B94-814E-7C2F7A8E1D99}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D85B4605-B4EA-4B94-814E-7C2F7A8E1D99}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D85B4605-B4EA-4B94-814E-7C2F7A8E1D99}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D85B4605-B4EA-4B94-814E-7C2F7A8E1D99}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

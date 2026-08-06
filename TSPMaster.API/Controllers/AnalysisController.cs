@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using TSPMaster.API.Dtos.Analysis;
 using TSPMaster.API.Services;
 
@@ -7,19 +8,22 @@ namespace TSPMaster.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Route("[controller]")]
 public class AnalysisController : ControllerBase
 {
     private readonly IAnalysisService _analysisService;
+    private readonly IMemoryCache _cache;
     private readonly ILogger<AnalysisController> _logger;
 
-    // Simple throttle: prevent back-to-back refreshes
-    private static DateTime _lastRefreshAt = DateTime.MinValue;
     private static readonly TimeSpan RefreshCooldown = TimeSpan.FromMinutes(30);
+    private const string RefreshCacheKey = "Analysis_LastRefreshAt";
 
-    public AnalysisController(IAnalysisService analysisService, ILogger<AnalysisController> logger)
+    public AnalysisController(
+        IAnalysisService analysisService,
+        IMemoryCache cache,
+        ILogger<AnalysisController> logger)
     {
         _analysisService = analysisService;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -41,15 +45,19 @@ public class AnalysisController : ControllerBase
     [ProducesResponseType(429)]
     public async Task<ActionResult<AnalysisResultDto>> RefreshRecommendation()
     {
-        if (DateTime.UtcNow - _lastRefreshAt < RefreshCooldown)
+        if (_cache.TryGetValue(RefreshCacheKey, out DateTime lastRefreshAt))
         {
-            var retryAfter = (int)(RefreshCooldown - (DateTime.UtcNow - _lastRefreshAt)).TotalSeconds;
-            Response.Headers.Append("Retry-After", retryAfter.ToString());
-            return StatusCode(429, new { message = $"Analysis refresh is throttled. Try again in {retryAfter} seconds." });
+            var elapsed = DateTime.UtcNow - lastRefreshAt;
+            if (elapsed < RefreshCooldown)
+            {
+                var retryAfter = (int)(RefreshCooldown - elapsed).TotalSeconds;
+                Response.Headers.Append("Retry-After", retryAfter.ToString());
+                return StatusCode(429, new { message = $"Analysis refresh is throttled. Try again in {retryAfter} seconds." });
+            }
         }
 
         _logger.LogInformation("AI analysis refresh triggered.");
-        _lastRefreshAt = DateTime.UtcNow;
+        _cache.Set(RefreshCacheKey, DateTime.UtcNow, RefreshCooldown);
 
         var result = await _analysisService.RefreshRecommendationAsync();
         return Ok(result);
@@ -57,7 +65,7 @@ public class AnalysisController : ControllerBase
 
     /// <summary>Manually trigger the 10:30 AM CST daily recommendation email dispatch (Admin/Test).</summary>
     [HttpPost("daily-email/test")]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> TriggerDailyEmail([FromServices] IEnumerable<IHostedService> services)
     {
         var dailyService = services.OfType<TspDailyRecommendationService>().FirstOrDefault();

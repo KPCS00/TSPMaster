@@ -74,7 +74,12 @@ export default function Login() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="login-password">Password</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2, 6px)' }}>
+              <label className="form-label" htmlFor="login-password" style={{ marginBottom: 0 }}>Password</label>
+              <Link id="forgot-password-link" to="/forgot-password" style={{ fontSize: 12, color: 'var(--clr-accent-primary, #60a5fa)', textDecoration: 'none', fontWeight: 500 }}>
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="login-password"
               className="form-input"
@@ -87,6 +92,7 @@ export default function Login() {
               required
             />
           </div>
+
 
           <button
             id="login-submit"

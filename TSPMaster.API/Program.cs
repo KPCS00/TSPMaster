@@ -43,10 +43,18 @@ try
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
+    // ─── Caching ──────────────────────────────────────────────────────────────
+    builder.Services.AddMemoryCache();
+
     // ─── JWT Bearer Auth ──────────────────────────────────────────────────────
     var jwtSection = builder.Configuration.GetSection("JwtSettings");
     var secretKey = jwtSection["SecretKey"]
         ?? throw new InvalidOperationException("JwtSettings:SecretKey is not configured.");
+
+    if (secretKey.Contains("REPLACE_WITH_SECURE_SECRET") && !builder.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException("Insecure default JwtSettings:SecretKey detected in non-Development environment.");
+    }
 
     builder.Services.AddAuthentication(options =>
     {
@@ -71,13 +79,28 @@ try
     builder.Services.AddAuthorization();
 
     // ─── CORS ─────────────────────────────────────────────────────────────────
+    var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+        ?? new[] { "http://localhost:5173", "https://localhost:5173" };
+
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowClient", policy =>
-            policy.SetIsOriginAllowed(_ => true)
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials());
+        {
+            if (allowedOrigins.Length > 0)
+            {
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+            }
+            else
+            {
+                policy.SetIsOriginAllowed(_ => true)
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+            }
+        });
     });
 
     // ─── HttpClient ───────────────────────────────────────────────────────────
@@ -93,7 +116,17 @@ try
     builder.Services.AddScoped<IAllocationService, AllocationService>();
     builder.Services.AddScoped<IPortfolioService, PortfolioService>();
     builder.Services.AddScoped<IAnalysisService, AnalysisService>();
-    builder.Services.AddScoped<IEmailService, SesEmailService>();
+
+    var emailProvider = builder.Configuration["EmailProvider"] ?? "Smtp";
+    if (emailProvider.Equals("SES", StringComparison.OrdinalIgnoreCase))
+    {
+        builder.Services.AddScoped<IEmailService, SesEmailService>();
+    }
+    else
+    {
+        builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+    }
+
 
     // ─── Background Services ──────────────────────────────────────────────────
     builder.Services.AddHostedService<TspPriceSyncService>();
@@ -149,7 +182,8 @@ try
         var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
         var logger2 = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
         logger2.LogError(ex, "Unhandled exception on {Method} {Path}", ctx.Request.Method, ctx.Request.Path);
-        await ctx.Response.WriteAsJsonAsync(new { error = "An internal server error occurred.", detail = ex?.Message });
+        var detail = app.Environment.IsDevelopment() ? ex?.Message : null;
+        await ctx.Response.WriteAsJsonAsync(new { error = "An internal server error occurred.", detail });
     }));
 
     app.UseCors("AllowClient");

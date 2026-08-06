@@ -73,27 +73,53 @@ public class AllocationService : IAllocationService
             }
         }
 
-        // Increment monthly transfer count
-        user.MonthlyTransfersCount++;
-        _db.Users.Update(user);
+        // Execute replacement inside a transaction for atomicity if using a relational provider
+        var isRelational = _db.Database.IsRelational();
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = isRelational
+            ? await _db.Database.BeginTransactionAsync()
+            : null;
 
-        // Remove all existing allocations for this user
-        var existing = await _db.FundAllocations
-            .Where(a => a.UserId == userId)
-            .ToListAsync();
-        _db.FundAllocations.RemoveRange(existing);
+        try
+        {
+            // Increment monthly transfer count
+            user.MonthlyTransfersCount++;
+            _db.Users.Update(user);
 
-        // Add new ones (only non-zero)
-        var newAllocations = activeAllocations
-            .Select(a => new FundAllocation
+            // Remove all existing allocations for this user
+            var existing = await _db.FundAllocations
+                .Where(a => a.UserId == userId)
+                .ToListAsync();
+            _db.FundAllocations.RemoveRange(existing);
+
+            // Add new ones (only non-zero)
+            var newAllocations = activeAllocations
+                .Select(a => new FundAllocation
+                {
+                    UserId = userId,
+                    FundName = a.FundName,
+                    Percentage = a.Percentage,
+                    UpdatedAt = DateTime.UtcNow
+                });
+
+            _db.FundAllocations.AddRange(newAllocations);
+            await _db.SaveChangesAsync();
+
+            if (tx is not null)
             {
-                UserId = userId,
-                FundName = a.FundName,
-                Percentage = a.Percentage,
-                UpdatedAt = DateTime.UtcNow
-            });
-
-        _db.FundAllocations.AddRange(newAllocations);
-        await _db.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+        }
+        catch
+        {
+            if (tx is not null)
+            {
+                await tx.RollbackAsync();
+            }
+            throw;
+        }
+        finally
+        {
+            tx?.Dispose();
+        }
     }
 }

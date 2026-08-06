@@ -78,11 +78,21 @@ public class TspDailyRecommendationService : BackgroundService
             var users = await db.Users.Where(u => !string.IsNullOrEmpty(u.Email)).ToListAsync(cancellationToken);
             _logger.LogInformation("Sending daily 10:30 AM CST recommendations to {Count} user(s).", users.Count);
 
-            foreach (var user in users)
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = 5,
+                CancellationToken = cancellationToken
+            };
+
+            await Parallel.ForEachAsync(users, parallelOptions, async (user, ct) =>
             {
                 try
                 {
-                    var status = await allocationService.GetTransferStatusAsync(user.Id);
+                    using var userScope = _scopeFactory.CreateScope();
+                    var userAllocationService = userScope.ServiceProvider.GetRequiredService<IAllocationService>();
+                    var userEmailService = userScope.ServiceProvider.GetRequiredService<IEmailService>();
+
+                    var status = await userAllocationService.GetTransferStatusAsync(user.Id);
 
                     string actionAdvice = status.RemainingTransfers switch
                     {
@@ -91,7 +101,7 @@ public class TspDailyRecommendationService : BackgroundService
                         _ => $"Move 1/2 Strategy Active: Primary seasonal & macro recommendation is top performer {rec.TopRecommendation}."
                     };
 
-                    await emailService.SendDailyRecommendationEmailAsync(
+                    await userEmailService.SendDailyRecommendationEmailAsync(
                         user.Email!,
                         string.IsNullOrWhiteSpace(user.FirstName) ? "TSP Investor" : user.FirstName,
                         rec.RecommendationText,
@@ -104,7 +114,7 @@ public class TspDailyRecommendationService : BackgroundService
                 {
                     _logger.LogWarning(ex, "Failed to send 10:30 AM CST recommendation email to {Email}", user.Email);
                 }
-            }
+            });
         }
         catch (Exception ex)
         {
@@ -112,7 +122,7 @@ public class TspDailyRecommendationService : BackgroundService
         }
     }
 
-    private static TimeZoneInfo GetCentralTimeZone()
+    private TimeZoneInfo GetCentralTimeZone()
     {
         try
         {
@@ -126,6 +136,7 @@ public class TspDailyRecommendationService : BackgroundService
             }
             catch
             {
+                _logger.LogWarning("Central Time zone not found on system. Falling back to UTC.");
                 return TimeZoneInfo.Utc;
             }
         }
