@@ -150,12 +150,10 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
 
     app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "TSPMaster.API", domain = "api.tspmaster.com" }));
     app.MapControllers();
-    app.MapFallbackToFile("index.html");
+
 
     await app.RunAsync();
 }

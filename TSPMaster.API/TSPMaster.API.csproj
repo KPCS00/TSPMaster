@@ -47,9 +47,7 @@
     <!-- Microsoft.Extensions.Http is included in the ASP.NET Core shared framework -->
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\TSPMaster.Client\TSPMaster.Client.csproj" />
-  </ItemGroup>
+
 
   <ItemGroup>
     <None Update="nlog.config">

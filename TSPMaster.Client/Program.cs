@@ -1,4 +1,9 @@
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+    WebRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+});
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -10,6 +15,9 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
 }
+
+
+
 
 // app.UseHttpsRedirection();
 app.UseDefaultFiles();
