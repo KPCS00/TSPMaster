@@ -132,6 +132,9 @@ public class AuthController : ControllerBase
 
             var email = user.Email!;
             var firstName = user.FirstName;
+
+            _logger.LogInformation("🔑 Generated Password Reset Link for {Email}: {ResetLink}", email, resetLink);
+
             _ = Task.Run(async () =>
             {
                 try
