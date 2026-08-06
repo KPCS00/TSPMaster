@@ -79,27 +79,22 @@ try
     builder.Services.AddAuthorization();
 
     // ─── CORS ─────────────────────────────────────────────────────────────────
-    var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-        ?? new[] { "http://localhost:5173", "https://localhost:5173" };
-
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowClient", policy =>
         {
-            if (allowedOrigins.Length > 0)
+            policy.SetIsOriginAllowed(origin =>
             {
-                policy.WithOrigins(allowedOrigins)
-                      .AllowAnyHeader()
-                      .AllowAnyMethod()
-                      .AllowCredentials();
-            }
-            else
-            {
-                policy.SetIsOriginAllowed(_ => true)
-                      .AllowAnyHeader()
-                      .AllowAnyMethod()
-                      .AllowCredentials();
-            }
+                if (string.IsNullOrEmpty(origin)) return false;
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+                var host = uri.Host;
+                return host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                       host.Equals("tspmaster.com", StringComparison.OrdinalIgnoreCase) ||
+                       host.EndsWith(".tspmaster.com", StringComparison.OrdinalIgnoreCase);
+            })
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
         });
     });
 
