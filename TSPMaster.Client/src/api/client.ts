@@ -58,6 +58,13 @@ export const fundsApi = {
 export const allocationsApi = {
   get: () => api.get('/allocations').then(r => r.data),
   getStatus: () => api.get('/allocations/status').then(r => r.data),
+  getOverview: () => api.get('/allocations/overview').then(r => r.data),
+  setInitialBalance: (balance: number, effectiveDate?: string) =>
+    api.post('/allocations/initial-balance', { balance, effectiveDate }).then(r => r.data),
+  recordMove: (data: { effectiveDate: string; description?: string; allocations: { fundName: string; percentage: number }[]; updatedBalance?: number }) =>
+    api.post('/allocations/move', data).then(r => r.data),
+  getHistory: () => api.get('/allocations/history').then(r => r.data),
+  deleteMove: (id: number) => api.delete(`/allocations/move/${id}`).then(r => r.data),
   set: (allocations: { fundName: string; percentage: number }[]) =>
     api.put('/allocations', { allocations }).then(r => r.data),
 }

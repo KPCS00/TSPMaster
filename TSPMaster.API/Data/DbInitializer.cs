@@ -17,25 +17,29 @@ public static class DbInitializer
 
         try
         {
-            // Apply any pending EF Core migrations
-            var pending = await context.Database.GetPendingMigrationsAsync();
-            if (pending.Any())
+            var strategy = context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                logger.LogInformation("Applying {Count} pending migration(s)...", pending.Count());
-                await context.Database.MigrateAsync();
-                logger.LogInformation("Migrations applied successfully.");
-            }
-
-            // Seed roles
-            string[] roles = { "Admin", "User" };
-            foreach (var role in roles)
-            {
-                if (!await roleManager.RoleExistsAsync(role))
+                // Apply any pending EF Core migrations
+                var pending = await context.Database.GetPendingMigrationsAsync();
+                if (pending.Any())
                 {
-                    await roleManager.CreateAsync(new IdentityRole(role));
-                    logger.LogInformation("Created role: {Role}", role);
+                    logger.LogInformation("Applying {Count} pending migration(s)...", pending.Count());
+                    await context.Database.MigrateAsync();
+                    logger.LogInformation("Migrations applied successfully.");
                 }
-            }
+
+                // Seed roles
+                string[] roles = { "Admin", "User" };
+                foreach (var role in roles)
+                {
+                    if (!await roleManager.RoleExistsAsync(role))
+                    {
+                        await roleManager.CreateAsync(new IdentityRole(role));
+                        logger.LogInformation("Created role: {Role}", role);
+                    }
+                }
+            });
         }
         catch (Exception ex)
         {

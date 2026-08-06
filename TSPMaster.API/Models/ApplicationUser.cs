@@ -18,7 +18,17 @@ public class ApplicationUser : IdentityUser
     /// <summary>Calendar month string (e.g. "2026-08") for which MonthlyTransfersCount applies.</summary>
     public string LastTransferMonth { get; set; } = string.Empty;
 
+    /// <summary>Initial TSP balance entered by user when setting up tracking.</summary>
+    public decimal InitialTspBalance { get; set; } = 0m;
+
+    /// <summary>Date on which initial TSP balance was recorded.</summary>
+    public DateTime? InitialBalanceDate { get; set; }
+
+    /// <summary>Current total TSP balance ($).</summary>
+    public decimal CurrentTspBalance { get; set; } = 0m;
+
     // Navigation
     public ICollection<FundAllocation> FundAllocations { get; set; } = new List<FundAllocation>();
     public ICollection<PortfolioSnapshot> PortfolioSnapshots { get; set; } = new List<PortfolioSnapshot>();
+    public ICollection<AllocationMove> AllocationMoves { get; set; } = new List<AllocationMove>();
 }

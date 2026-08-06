@@ -13,6 +13,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<FundAllocation> FundAllocations => Set<FundAllocation>();
     public DbSet<PortfolioSnapshot> PortfolioSnapshots => Set<PortfolioSnapshot>();
     public DbSet<AnalysisResult> AnalysisResults => Set<AnalysisResult>();
+    public DbSet<AllocationMove> AllocationMoves => Set<AllocationMove>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -83,11 +84,32 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.IsActive);
         });
 
+        // AllocationMove
+        builder.Entity<AllocationMove>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.EffectiveDate })
+                  .HasDatabaseName("IX_AllocationMove_User_Date");
+
+            entity.HasIndex(e => new { e.UserId, e.MonthKey })
+                  .HasDatabaseName("IX_AllocationMove_User_Month");
+
+            entity.Property(e => e.BalanceAtMove).HasPrecision(18, 2);
+            entity.Property(e => e.Description).HasMaxLength(250);
+            entity.Property(e => e.MonthKey).HasMaxLength(10);
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.AllocationMoves)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ApplicationUser
         builder.Entity<ApplicationUser>(entity =>
         {
             entity.Property(e => e.FirstName).HasMaxLength(100);
             entity.Property(e => e.LastName).HasMaxLength(100);
+            entity.Property(e => e.InitialTspBalance).HasPrecision(18, 2);
+            entity.Property(e => e.CurrentTspBalance).HasPrecision(18, 2);
         });
     }
 }

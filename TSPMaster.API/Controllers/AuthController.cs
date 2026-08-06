@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TSPMaster.API.Data;
 using TSPMaster.API.Dtos.Auth;
 using TSPMaster.API.Helpers;
 using TSPMaster.API.Models;
@@ -17,6 +19,7 @@ public class AuthController : ControllerBase
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<AuthController> _logger;
+    private readonly ApplicationDbContext _db;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
@@ -24,7 +27,8 @@ public class AuthController : ControllerBase
         ITokenService tokenService,
         IServiceScopeFactory scopeFactory,
         IConfiguration config,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        ApplicationDbContext db)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -32,6 +36,7 @@ public class AuthController : ControllerBase
         _scopeFactory = scopeFactory;
         _config = config;
         _logger = logger;
+        _db = db;
     }
 
     private int ExpirationHours =>
@@ -52,7 +57,17 @@ public class AuthController : ControllerBase
             CreatedAt = DateTime.UtcNow
         };
 
-        var result = await _userManager.CreateAsync(user, request.Password);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        var result = await strategy.ExecuteAsync(async () =>
+        {
+            var res = await _userManager.CreateAsync(user, request.Password);
+            if (res.Succeeded)
+            {
+                await _userManager.AddToRoleAsync(user, "User");
+            }
+            return res;
+        });
+
         if (!result.Succeeded)
         {
             _logger.LogWarning("Registration failed for {Email}: {Errors}",
@@ -61,8 +76,6 @@ public class AuthController : ControllerBase
                 ModelState.AddModelError(error.Code, error.Description);
             return ValidationProblem(ModelState);
         }
-
-        await _userManager.AddToRoleAsync(user, "User");
 
         // Send welcome email safely in background scope
         var email = user.Email!;
@@ -105,8 +118,12 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
-        user.LastLoginAt = DateTime.UtcNow;
-        await _userManager.UpdateAsync(user);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            user.LastLoginAt = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
+        });
 
         var roles = await _userManager.GetRolesAsync(user);
         var token = _tokenService.GenerateToken(user, roles);
@@ -126,7 +143,12 @@ public class AuthController : ControllerBase
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user != null)
         {
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var strategy = _db.Database.CreateExecutionStrategy();
+            var token = await strategy.ExecuteAsync(async () =>
+            {
+                return await _userManager.GeneratePasswordResetTokenAsync(user);
+            });
+
             var clientUrl = _config["ClientUrl"] ?? "http://localhost:5173";
             var resetLink = $"{clientUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
 
@@ -167,7 +189,12 @@ public class AuthController : ControllerBase
         if (user is null)
             return BadRequest(new { message = "Invalid email or token." });
 
-        var result = await _userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        var result = await strategy.ExecuteAsync(async () =>
+        {
+            return await _userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
+        });
+
         if (!result.Succeeded)
         {
             var errors = string.Join("; ", result.Errors.Select(e => e.Description));
@@ -178,4 +205,5 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Password reset successfully. You can now log in with your new password." });
     }
 }
+
 

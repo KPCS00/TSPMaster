@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TSPMaster.API.Data;
 using TSPMaster.API.Dtos.Allocations;
@@ -29,7 +30,9 @@ public class AllocationService : IAllocationService
             ?? throw new InvalidOperationException("User not found.");
 
         var currentMonth = DateTime.UtcNow.ToString("yyyy-MM");
-        var count = user.LastTransferMonth == currentMonth ? user.MonthlyTransfersCount : 0;
+        var count = await _db.AllocationMoves
+            .CountAsync(m => m.UserId == userId && m.MonthKey == currentMonth);
+
         var remaining = Math.Max(0, 3 - count);
         var isMove3GFundOnly = count == 2;
 
@@ -38,30 +41,90 @@ public class AllocationService : IAllocationService
 
     public async Task SetAllocationsAsync(string userId, List<AllocationItem> allocations)
     {
-        // Validate: must sum to 100%
-        var total = allocations.Sum(a => a.Percentage);
+        await RecordMoveAsync(userId, new RecordMoveRequest(
+            DateTime.UtcNow,
+            "Allocation Update",
+            allocations,
+            null
+        ));
+    }
+
+    public async Task<AllocationOverviewDto> GetOverviewAsync(string userId)
+    {
+        var user = await _db.Users.FindAsync(userId)
+            ?? throw new InvalidOperationException("User not found.");
+
+        var currentAllocations = await GetAllocationsAsync(userId);
+        var transferStatus = await GetTransferStatusAsync(userId);
+        var moveHistory = await GetMoveHistoryAsync(userId);
+
+        // Fetch latest active recommendation if available
+        var latestRecommendation = await _db.AnalysisResults
+            .Where(a => a.IsActive)
+            .OrderByDescending(a => a.GeneratedAt)
+            .FirstOrDefaultAsync();
+
+        return new AllocationOverviewDto(
+            user.InitialTspBalance,
+            user.CurrentTspBalance,
+            user.InitialBalanceDate,
+            currentAllocations,
+            transferStatus,
+            moveHistory,
+            latestRecommendation?.TopRecommendation,
+            latestRecommendation?.RecommendationText
+        );
+    }
+
+    public async Task SetInitialBalanceAsync(string userId, decimal balance, DateTime? effectiveDate)
+    {
+        if (balance < 0)
+            throw new InvalidOperationException("Balance cannot be negative.");
+
+        var user = await _db.Users.FindAsync(userId)
+            ?? throw new InvalidOperationException("User not found.");
+
+        user.InitialTspBalance = balance;
+        user.InitialBalanceDate = effectiveDate ?? DateTime.UtcNow;
+
+        if (user.CurrentTspBalance == 0m || user.CurrentTspBalance < balance)
+        {
+            user.CurrentTspBalance = balance;
+        }
+
+        _db.Users.Update(user);
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<AllocationMoveDto> RecordMoveAsync(string userId, RecordMoveRequest request)
+    {
+        if (request.Allocations is null || !request.Allocations.Any())
+            throw new InvalidOperationException("At least one allocation is required.");
+
+        var activeAllocations = request.Allocations.Where(a => a.Percentage > 0).ToList();
+        var total = activeAllocations.Sum(a => a.Percentage);
         if (Math.Abs(total - 100m) > 0.01m)
             throw new InvalidOperationException($"Allocations must sum to 100%. Current total: {total}%");
 
         var user = await _db.Users.FindAsync(userId)
             ?? throw new InvalidOperationException("User not found.");
 
-        var currentMonth = DateTime.UtcNow.ToString("yyyy-MM");
-        if (user.LastTransferMonth != currentMonth)
+        var moveDate = request.EffectiveDate == default ? DateTime.UtcNow : request.EffectiveDate;
+        var monthKey = moveDate.ToString("yyyy-MM");
+
+        var existingMovesInMonth = await _db.AllocationMoves
+            .Where(m => m.UserId == userId && m.MonthKey == monthKey)
+            .CountAsync();
+
+        if (existingMovesInMonth >= 3)
         {
-            user.LastTransferMonth = currentMonth;
-            user.MonthlyTransfersCount = 0;
+            throw new InvalidOperationException($"You have used all 3 allowed Interfund Transfers (IFT) for {monthKey}. Moves reset on the 1st of next month.");
         }
 
-        if (user.MonthlyTransfersCount >= 3)
-        {
-            throw new InvalidOperationException("You have used all 3 Interfund Transfers (IFT) allowed for this calendar month.");
-        }
-
-        var activeAllocations = allocations.Where(a => a.Percentage > 0).ToList();
+        var moveNumber = existingMovesInMonth + 1;
 
         // 3rd Move Rule: Restricted to 100% G Fund
-        if (user.MonthlyTransfersCount == 2)
+        if (moveNumber == 3)
         {
             bool isAllGFund = activeAllocations.Count == 1 &&
                               activeAllocations[0].FundName.Equals("G Fund", StringComparison.OrdinalIgnoreCase) &&
@@ -73,53 +136,150 @@ public class AllocationService : IAllocationService
             }
         }
 
-        // Execute replacement inside a transaction for atomicity if using a relational provider
-        var isRelational = _db.Database.IsRelational();
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = isRelational
-            ? await _db.Database.BeginTransactionAsync()
-            : null;
-
-        try
+        var balanceAtMove = request.UpdatedBalance ?? (user.CurrentTspBalance > 0 ? user.CurrentTspBalance : user.InitialTspBalance);
+        if (request.UpdatedBalance.HasValue && request.UpdatedBalance.Value > 0)
         {
-            // Increment monthly transfer count
-            user.MonthlyTransfersCount++;
-            _db.Users.Update(user);
+            user.CurrentTspBalance = request.UpdatedBalance.Value;
+        }
 
-            // Remove all existing allocations for this user
-            var existing = await _db.FundAllocations
-                .Where(a => a.UserId == userId)
-                .ToListAsync();
-            _db.FundAllocations.RemoveRange(existing);
+        var json = JsonSerializer.Serialize(activeAllocations);
 
-            // Add new ones (only non-zero)
-            var newAllocations = activeAllocations
-                .Select(a => new FundAllocation
-                {
-                    UserId = userId,
-                    FundName = a.FundName,
-                    Percentage = a.Percentage,
-                    UpdatedAt = DateTime.UtcNow
-                });
+        var move = new AllocationMove
+        {
+            UserId = userId,
+            EffectiveDate = moveDate,
+            Description = string.IsNullOrWhiteSpace(request.Description) ? $"Move #{moveNumber} ({monthKey})" : request.Description,
+            BalanceAtMove = balanceAtMove,
+            AllocationsJson = json,
+            MoveNumberInMonth = moveNumber,
+            MonthKey = monthKey,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            _db.FundAllocations.AddRange(newAllocations);
-            await _db.SaveChangesAsync();
+        _db.AllocationMoves.Add(move);
 
-            if (tx is not null)
+        // Update user's current allocations table
+        var existingAllocations = await _db.FundAllocations.Where(a => a.UserId == userId).ToListAsync();
+        _db.FundAllocations.RemoveRange(existingAllocations);
+
+        var newAllocations = activeAllocations.Select(a => new FundAllocation
+        {
+            UserId = userId,
+            FundName = a.FundName,
+            Percentage = a.Percentage,
+            UpdatedAt = moveDate
+        });
+        _db.FundAllocations.AddRange(newAllocations);
+
+        // Update user monthly count stats
+        var currentMonth = DateTime.UtcNow.ToString("yyyy-MM");
+        if (user.LastTransferMonth != currentMonth)
+        {
+            user.LastTransferMonth = currentMonth;
+            user.MonthlyTransfersCount = currentMonth == monthKey ? moveNumber : 0;
+        }
+        else if (currentMonth == monthKey)
+        {
+            user.MonthlyTransfersCount = moveNumber;
+        }
+
+        _db.Users.Update(user);
+        await _db.SaveChangesAsync();
+
+        return new AllocationMoveDto(
+            move.Id,
+            move.EffectiveDate,
+            move.Description,
+            move.BalanceAtMove,
+            activeAllocations,
+            move.MoveNumberInMonth,
+            move.MonthKey,
+            move.CreatedAt
+        );
+    }
+
+    public async Task DeleteMoveAsync(string userId, int moveId)
+    {
+        var move = await _db.AllocationMoves
+            .FirstOrDefaultAsync(m => m.Id == moveId && m.UserId == userId)
+            ?? throw new InvalidOperationException("Move entry not found.");
+
+        var monthKey = move.MonthKey;
+        _db.AllocationMoves.Remove(move);
+        await _db.SaveChangesAsync();
+
+        // Re-index move numbers for that month
+        var remainingMovesInMonth = await _db.AllocationMoves
+            .Where(m => m.UserId == userId && m.MonthKey == monthKey)
+            .OrderBy(m => m.EffectiveDate)
+            .ThenBy(m => m.CreatedAt)
+            .ToListAsync();
+
+        for (int i = 0; i < remainingMovesInMonth.Count; i++)
+        {
+            remainingMovesInMonth[i].MoveNumberInMonth = i + 1;
+        }
+        _db.AllocationMoves.UpdateRange(remainingMovesInMonth);
+
+        // Update current allocations to latest move if available
+        var latestMove = await _db.AllocationMoves
+            .Where(m => m.UserId == userId)
+            .OrderByDescending(m => m.EffectiveDate)
+            .ThenByDescending(m => m.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (latestMove != null)
+        {
+            var active = JsonSerializer.Deserialize<List<AllocationItem>>(latestMove.AllocationsJson) ?? new();
+            var existingAllocations = await _db.FundAllocations.Where(a => a.UserId == userId).ToListAsync();
+            _db.FundAllocations.RemoveRange(existingAllocations);
+
+            _db.FundAllocations.AddRange(active.Select(a => new FundAllocation
             {
-                await tx.CommitAsync();
+                UserId = userId,
+                FundName = a.FundName,
+                Percentage = a.Percentage,
+                UpdatedAt = latestMove.EffectiveDate
+            }));
+        }
+
+        // Update user monthly transfers count
+        var user = await _db.Users.FindAsync(userId);
+        if (user != null)
+        {
+            var currentMonth = DateTime.UtcNow.ToString("yyyy-MM");
+            if (user.LastTransferMonth == currentMonth)
+            {
+                user.MonthlyTransfersCount = await _db.AllocationMoves
+                    .CountAsync(m => m.UserId == userId && m.MonthKey == currentMonth);
+                _db.Users.Update(user);
             }
         }
-        catch
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<List<AllocationMoveDto>> GetMoveHistoryAsync(string userId)
+    {
+        var moves = await _db.AllocationMoves
+            .Where(m => m.UserId == userId)
+            .OrderByDescending(m => m.EffectiveDate)
+            .ThenByDescending(m => m.CreatedAt)
+            .ToListAsync();
+
+        return moves.Select(m =>
         {
-            if (tx is not null)
-            {
-                await tx.RollbackAsync();
-            }
-            throw;
-        }
-        finally
-        {
-            tx?.Dispose();
-        }
+            var allocations = JsonSerializer.Deserialize<List<AllocationItem>>(m.AllocationsJson) ?? new();
+            return new AllocationMoveDto(
+                m.Id,
+                m.EffectiveDate,
+                m.Description,
+                m.BalanceAtMove,
+                allocations,
+                m.MoveNumberInMonth,
+                m.MonthKey,
+                m.CreatedAt
+            );
+        }).ToList();
     }
 }
