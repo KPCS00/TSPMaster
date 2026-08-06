@@ -76,7 +76,6 @@ public class AuthController : ControllerBase
         var token = _tokenService.GenerateToken(user, roles);
 
         _logger.LogInformation("User registered: {Email}", user.Email);
-        await _tspData.EnsurePricesUpToDateAsync();
         return Ok(new AuthResponse(token, DateTime.UtcNow.AddHours(24), user.Id, user.Email!, user.FirstName, user.LastName));
     }
 
@@ -104,7 +103,6 @@ public class AuthController : ControllerBase
         var token = _tokenService.GenerateToken(user, roles);
 
         _logger.LogInformation("User logged in: {Email}", user.Email);
-        await _tspData.EnsurePricesUpToDateAsync();
         return Ok(new AuthResponse(token, DateTime.UtcNow.AddHours(24), user.Id, user.Email!, user.FirstName, user.LastName));
     }
 }

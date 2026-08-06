@@ -142,6 +142,16 @@ try
     }
 
     // ─── Middleware Pipeline ──────────────────────────────────────────────────
+    app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
+    {
+        ctx.Response.StatusCode = 500;
+        ctx.Response.ContentType = "application/json";
+        var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+        var logger2 = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger2.LogError(ex, "Unhandled exception on {Method} {Path}", ctx.Request.Method, ctx.Request.Path);
+        await ctx.Response.WriteAsJsonAsync(new { error = "An internal server error occurred.", detail = ex?.Message });
+    }));
+
     app.UseCors("AllowClient");
 
     app.UseSwagger();
