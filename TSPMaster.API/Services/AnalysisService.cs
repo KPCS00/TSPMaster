@@ -249,22 +249,38 @@ public class AnalysisService : IAnalysisService
         {
             var response = await client.PostAsJsonAsync(url, requestBody);
             var json = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-            var text = doc.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
-                .GetString() ?? string.Empty;
 
-            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var context = lines.Length > 3 ? string.Join("\n", lines.Skip(3)) : "See full recommendation above.";
-            return (text, context);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Gemini API call returned HTTP {StatusCode}: {Body}", response.StatusCode, json);
+                return (BuildFallbackRecommendation([], "Current Pick", GetNextBusinessDay(DateOnly.FromDateTime(DateTime.UtcNow)), null), "Gemini API unavailable. Using quantitative model analysis.");
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("candidates", out var candidates) &&
+                candidates.ValueKind == JsonValueKind.Array &&
+                candidates.GetArrayLength() > 0)
+            {
+                var candidate = candidates[0];
+                if (candidate.TryGetProperty("content", out var content) &&
+                    content.TryGetProperty("parts", out var parts) &&
+                    parts.ValueKind == JsonValueKind.Array &&
+                    parts.GetArrayLength() > 0)
+                {
+                    var text = parts[0].GetProperty("text").GetString() ?? string.Empty;
+                    var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                    var context = lines.Length > 3 ? string.Join("\n", lines.Skip(3)) : "See full recommendation above.";
+                    return (text, context);
+                }
+            }
+
+            _logger.LogWarning("Gemini API response did not contain candidates property. Body: {Body}", json);
+            return (BuildFallbackRecommendation([], "Current Pick", GetNextBusinessDay(DateOnly.FromDateTime(DateTime.UtcNow)), null), "Quantitative analysis fallback used.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Gemini API call failed.");
-            return (BuildFallbackRecommendation([], string.Empty, GetNextBusinessDay(DateOnly.FromDateTime(DateTime.UtcNow)), null), "Analysis unavailable.");
+            _logger.LogError(ex, "Gemini API call failed with exception.");
+            return (BuildFallbackRecommendation([], "Current Pick", GetNextBusinessDay(DateOnly.FromDateTime(DateTime.UtcNow)), null), "Analysis unavailable.");
         }
     }
 

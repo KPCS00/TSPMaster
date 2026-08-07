@@ -96,11 +96,12 @@ export default function Analysis() {
       const data = await analysisApi.refresh()
       setResult(data)
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number; data?: { message?: string } } })?.response
-      if (status?.status === 429) {
-        setCooldownMsg(status.data?.message ?? 'Analysis throttled. Try again later.')
+      const resp = (err as { response?: { status?: number; data?: { message?: string; detail?: string; error?: string } } })?.response
+      if (resp?.status === 429) {
+        setCooldownMsg(resp.data?.message ?? 'Analysis throttled. Try again later.')
       } else {
-        setError('Failed to generate analysis. Check your Gemini API key in appsettings.json.')
+        const msg = resp?.data?.message || resp?.data?.detail || resp?.data?.error || 'Failed to generate analysis. Check API configuration.'
+        setError(msg)
       }
     } finally { setRefreshing(false) }
   }
