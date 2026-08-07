@@ -46,6 +46,18 @@ public class AnalysisResult
     /// <summary>JSON-serialized day-by-day fund calendar entries for the current month.</summary>
     public string DailyCalendarJson { get; set; } = "[]";
 
+    /// <summary>Effective date for trade submitted today before 11:00 AM CST (YYYY-MM-DD).</summary>
+    public string TomorrowEffectiveDate { get; set; } = string.Empty;
+
+    /// <summary>JSON-serialized dictionary of target fund allocations for tomorrow.</summary>
+    public string TomorrowAllocationJson { get; set; } = "{}";
+
+    /// <summary>JSON-serialized live intraday morning market snapshot (Open to 10:30 AM CST).</summary>
+    public string IntradayMarketSnapshotJson { get; set; } = "{}";
+
+    /// <summary>Full multi-decade historical seasonality summary for current month & trading day.</summary>
+    public string HistoricalSeasonalitySummary { get; set; } = string.Empty;
+
     /// <summary>Whether this is the current active recommendation.</summary>
     public bool IsActive { get; set; } = true;
 }

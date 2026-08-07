@@ -49,5 +49,9 @@ public record AnalysisResultDto(
     MonthlyMovePlanDto Move3Plan,
     string MacroNewsSummary,
     List<ScheduledMoveDto> ScheduledMoves,
-    List<DailyCalendarEntryDto> DailyCalendar
+    List<DailyCalendarEntryDto> DailyCalendar,
+    string TomorrowEffectiveDate = "",
+    Dictionary<string, decimal>? TomorrowAllocation = null,
+    IntradayMarketSnapshotDto? IntradayMarketSnapshot = null,
+    string HistoricalSeasonalitySummary = ""
 );

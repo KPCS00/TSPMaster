@@ -96,9 +96,9 @@ public class TspDailyRecommendationService : BackgroundService
 
                     string actionAdvice = status.RemainingTransfers switch
                     {
-                        0 => "No transfers remaining for this month. Hold current allocation.",
-                        1 => $"Move 3 (Emergency Exit) active: Restrict transfer to 100% G Fund if safety trigger is met.",
-                        _ => $"Move 1/2 Strategy Active: Primary seasonal & macro recommendation is top performer {rec.TopRecommendation}."
+                        0 => $"No transfers remaining for {rec.TargetMonth}. Hold current allocation for tomorrow ({rec.TomorrowEffectiveDate}).",
+                        1 => $"Move 3 (Emergency Exit) active: Restrict transfer to 100% G Fund before 11:00 AM CST today if safety trigger is met.",
+                        _ => $"ACTION FOR TOMORROW ({rec.TomorrowEffectiveDate}): Position portfolio in top historical performer {rec.TopRecommendation} before 11:00 AM CST today."
                     };
 
                     await userEmailService.SendDailyRecommendationEmailAsync(
@@ -107,7 +107,10 @@ public class TspDailyRecommendationService : BackgroundService
                         rec.RecommendationText,
                         actionAdvice,
                         status.RemainingTransfers,
-                        rec.TargetMonth ?? status.CurrentMonth
+                        rec.TargetMonth ?? status.CurrentMonth,
+                        rec.TomorrowEffectiveDate,
+                        rec.IntradayMarketSnapshot?.MarketSentimentSummary ?? rec.MarketContext,
+                        rec.HistoricalSeasonalitySummary
                     );
                 }
                 catch (Exception ex)

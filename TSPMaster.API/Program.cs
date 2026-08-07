@@ -105,9 +105,15 @@ try
         client.Timeout = TimeSpan.FromSeconds(60);
     });
 
+    builder.Services.AddHttpClient("MarketDataClient", client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(15);
+    });
+
     // ─── Application Services ─────────────────────────────────────────────────
     builder.Services.AddScoped<ITokenService, TokenService>();
     builder.Services.AddScoped<ITspDataService, TspDataService>();
+    builder.Services.AddScoped<IIntradayMarketService, IntradayMarketService>();
     builder.Services.AddScoped<IAllocationService, AllocationService>();
     builder.Services.AddScoped<IPortfolioService, PortfolioService>();
     builder.Services.AddScoped<IAnalysisService, AnalysisService>();

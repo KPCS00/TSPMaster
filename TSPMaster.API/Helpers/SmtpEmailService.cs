@@ -118,15 +118,47 @@ public class SmtpEmailService : IEmailService
     }
 
     public async Task SendDailyRecommendationEmailAsync(
-        string toEmail, string firstName, string recommendationSummary, string actionAdvice, int remainingTransfers, string currentMonth)
+        string toEmail,
+        string firstName,
+        string recommendationSummary,
+        string actionAdvice,
+        int remainingTransfers,
+        string currentMonth,
+        string tomorrowEffectiveDate = "",
+        string intradaySummary = "",
+        string seasonalitySummary = "")
     {
-        var subject = $"⏰ [10:30 AM CST Alert] TSP Daily Strategy Recommendation ({DateTime.UtcNow:MMM dd})";
+        var targetTomorrowText = string.IsNullOrWhiteSpace(tomorrowEffectiveDate) ? "Tomorrow" : tomorrowEffectiveDate;
+        var subject = $"⏰ [10:30 AM CST Alert] TSP Strategy Directive for Tomorrow ({targetTomorrowText})";
+
+        var intradayHtml = string.IsNullOrWhiteSpace(intradaySummary) ? "" : $"""
+            <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 15px; border-radius: 4px; margin-bottom: 15px;">
+              <div style="font-size: 11px; font-weight: bold; color: #15803d; text-transform: uppercase;">
+                ⚡ Live Morning Snapshot (Open to 10:30 AM CST)
+              </div>
+              <div style="font-size: 13px; color: #166534; margin-top: 4px;">
+                {intradaySummary}
+              </div>
+            </div>
+            """;
+
+        var seasonalityHtml = string.IsNullOrWhiteSpace(seasonalitySummary) ? "" : $"""
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 15px; border-radius: 6px; margin-bottom: 15px;">
+              <div style="font-size: 12px; font-weight: bold; color: #334155; margin-bottom: 6px;">
+                📅 Multi-Decade Historical Seasonality & Trading Day Insights
+              </div>
+              <div style="font-size: 12px; color: #475569; line-height: 1.5; white-space: pre-line;">
+                {seasonalitySummary}
+              </div>
+            </div>
+            """;
+
         var html = $"""
             <html><body style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; color: #1e293b;">
               <div style="background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 25px; border-radius: 8px 8px 0 0; text-align: center;">
                 <h1 style="color: #60a5fa; margin: 0; font-size: 24px;">📊 TSP Master Morning Briefing</h1>
                 <div style="color: #fbbf24; font-size: 13px; font-weight: bold; margin-top: 6px;">
-                  ⏰ 10:30 AM CST — 30 Minutes Before 11:00 AM CST TSP.gov Trade Deadline
+                  ⏰ 10:30 AM CST — Position your portfolio for Effective Date: <strong>{targetTomorrowText}</strong>
                 </div>
               </div>
               
@@ -134,13 +166,13 @@ public class SmtpEmailService : IEmailService
                 <p style="font-size: 16px; font-weight: bold; color: #0f172a; margin-top: 0;">Hi {firstName},</p>
                 
                 <p style="font-size: 14px; line-height: 1.6;">
-                  Here is your daily AI-driven strategy briefing for <strong>{currentMonth}</strong>. To ensure trades execute overnight and take effect tomorrow, any Interfund Transfers (IFT) must be submitted on <strong>TSP.gov before 11:00 AM CST</strong> today.
+                  Here is your daily AI & quantitative strategy briefing for <strong>{currentMonth}</strong>. To ensure trades execute overnight and become effective on <strong>{targetTomorrowText}</strong>, submit your Interfund Transfer (IFT) on <strong>TSP.gov before 11:00 AM CST</strong> today.
                 </p>
 
                 <!-- Action Directive Box -->
                 <div style="background: #eff6ff; border-left: 5px solid #2563eb; padding: 15px; border-radius: 6px; margin: 20px 0;">
                   <div style="font-size: 11px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">
-                    🎯 Recommended Daily Action
+                    🎯 Recommended Directive for Tomorrow ({targetTomorrowText})
                   </div>
                   <div style="font-size: 16px; font-weight: bold; color: #1e293b; margin-top: 4px;">
                     {actionAdvice}
@@ -150,10 +182,14 @@ public class SmtpEmailService : IEmailService
                   </div>
                 </div>
 
+                {intradayHtml}
+
+                {seasonalityHtml}
+
                 <!-- Briefing Details -->
-                <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
                   <div style="font-size: 13px; font-weight: bold; color: #334155; margin-bottom: 8px;">
-                    📈 Market & Monthly Strategy Summary
+                    🤖 AI Analysis & Execution Reasoning
                   </div>
                   <div style="font-size: 13px; color: #475569; line-height: 1.5; white-space: pre-line;">
                     {recommendationSummary}

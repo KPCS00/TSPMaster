@@ -38,27 +38,13 @@ public class AnalysisController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Trigger a new AI analysis (throttled to once per 30 minutes).</summary>
+    /// <summary>Trigger a new AI analysis.</summary>
     [HttpPost("refresh")]
     [Authorize]
     [ProducesResponseType(typeof(AnalysisResultDto), 200)]
-    [ProducesResponseType(429)]
     public async Task<ActionResult<AnalysisResultDto>> RefreshRecommendation()
     {
-        if (_cache.TryGetValue(RefreshCacheKey, out DateTime lastRefreshAt))
-        {
-            var elapsed = DateTime.UtcNow - lastRefreshAt;
-            if (elapsed < RefreshCooldown)
-            {
-                var retryAfter = (int)(RefreshCooldown - elapsed).TotalSeconds;
-                Response.Headers.Append("Retry-After", retryAfter.ToString());
-                return StatusCode(429, new { message = $"Analysis refresh is throttled. Try again in {retryAfter} seconds." });
-            }
-        }
-
         _logger.LogInformation("AI analysis refresh triggered.");
-        _cache.Set(RefreshCacheKey, DateTime.UtcNow, RefreshCooldown);
-
         var result = await _analysisService.RefreshRecommendationAsync();
         return Ok(result);
     }
