@@ -206,14 +206,22 @@ public class SesEmailService : IEmailService
     {
         var region = RegionEndpoint.GetBySystemName(_config["AWS:Region"] ?? "us-east-1");
 
-        // Try environment variables / IAM role first; fall back to config
-        var accessKey = _config["AWS:AccessKey"];
-        var secretKey = _config["AWS:SecretKey"];
+        // Check AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars first, then AWS:AccessKey / AWS:SecretKey config
+        var accessKey = _config["AWS_ACCESS_KEY_ID"]
+            ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID")
+            ?? _config["AWS:AccessKey"];
 
-        if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
+        var secretKey = _config["AWS_SECRET_ACCESS_KEY"]
+            ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY")
+            ?? _config["AWS:SecretKey"];
+
+        if (!string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey))
+        {
             return new AmazonSimpleEmailServiceClient(
-                new BasicAWSCredentials(accessKey, secretKey), region);
+                new BasicAWSCredentials(accessKey.Trim(), secretKey.Trim()), region);
+        }
 
+        // Fall back to default AWS SDK credential chain (IAM roles / standard AWS env vars)
         return new AmazonSimpleEmailServiceClient(region);
     }
 

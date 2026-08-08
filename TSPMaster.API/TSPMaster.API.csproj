@@ -50,6 +50,8 @@
 
 
   <ItemGroup>
+    <!-- Exclude development settings from publish output -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
     <None Update="nlog.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
